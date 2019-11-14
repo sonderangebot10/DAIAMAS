@@ -18,7 +18,7 @@ species people skills:[moving, fipa] {
 	point targetPoint <- nil;
 	bool inAuction <- false;
 	
-	int max_price <- rnd(1, 80);
+	int max_price <- rnd(40, 80);
 	
 	aspect base {
 		draw circle(2) color: color;
@@ -53,8 +53,10 @@ species people skills:[moving, fipa] {
 }
 
 species auctioneer skills:[fipa] {
-	int min_price <- 20;
-	int price <- 100;
+	people previous_bidder <- nil;
+	int previous_length <- 0;
+	
+	int price <- 20;
 	
 	list<people> listeners;
 	
@@ -74,24 +76,29 @@ species auctioneer skills:[fipa] {
 		write '(Time ' + time + '): ' + name + ' sends an inform message to all participants';
 		do start_conversation to: list(people) protocol: 'fipa-contract-net' performative: 'inform' contents: ['initiation'];
 	}
-	
-	reflex send_request_to_participants when: (!sold and time mod 2 = 0 and length(listeners) > 0) {
-		price <- price - rnd(1,3);
-		write '(Time ' + time + '): ' + name + ' sends a request message to listeners';
-		if(price < min_price){
-			write 'Auction ended, price too low!';
+
+	reflex receive_agree_messages when: !empty(proposes) and !sold {
+		write(length(proposes) - previous_length);
+		if(length(proposes) - previous_length = 0) {
+			write  '(Time ' + time + '): ' + previous_bidder + ' won the auction with price: ' + price;
+			sold <- true;
+		}
+		else if (length(proposes) - previous_length = 1) {
+			write  '(Time ' + time + '): ' + proposes[0].sender + ' won the auction with price: ' + price;
 			sold <- true;
 		}
 		else {
-			do start_conversation to: listeners protocol: 'fipa-contract-net' performative: 'cfp' contents: [price];
+			previous_bidder <- proposes[0].sender;
 		}
+		
+		previous_length <- length(proposes);
 	}
-
-	reflex receive_agree_messages when: !empty(proposes) and !sold {
-		sold <- true;
-		write '(Time ' + time + '): ' + name + ' received agree messages';
-		write '\t' + name + ' receives a propose message from ' + proposes[0].sender + ' with content ' + proposes[0].contents;
-	}
+	
+	reflex send_request_to_participants when: (!sold and length(listeners) > 0) and !sold {
+		price <- price + 2;
+		write '(Time ' + time + '): ' + name + ' sends a request message to listeners';
+		do start_conversation to: listeners protocol: 'fipa-contract-net' performative: 'cfp' contents: [price];
+		}
 	
 	reflex read_inform_message when: !(empty(informs)) and time=2 {
 		loop i over: informs {
