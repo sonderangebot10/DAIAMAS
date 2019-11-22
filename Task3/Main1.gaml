@@ -40,36 +40,26 @@ species queen skills:[moving] {
 	reflex moveToTarget when: targetPoint != nil {
 		if(targetPoint = location) {
 			targetPoint <- nil;
+			established <- true;			
+			
+			ask queen at_distance 1000 {
+				if int(self.name) = int(myself.name) + 1 {
+					self.tried_count <- self.tried_count + 1;
+				}
+			}
 		}
 		do goto target: targetPoint;
 	}
 	
-	reflex mov when: tried_count != -1 {
+	reflex mov when: tried_count != -1 and !established {
 		if(location != board[tried_count]){
-			targetPoint <- board[tried_count];
-		}
-	}
-	
-	reflex askPrevious when: !established {
-		ask queen at_distance 1000 {
-			if int(self.name) = int(myself.name) - 1 {
-				//predecessor
-				
-			}
-		}
-		
-		ask queen at_distance 1000 {
-			if int(self.name) = int(myself.name) + 1 {
-				//successor
-				
-			}
+			targetPoint <- board[tried_count + size_board * int(name)];
 		}
 	}
 	
 	aspect base {
 		draw circle(3) color: color depth: 3;
 		draw ('name: ' + self.name) color: #black font:font("Helvetica", 20 , #bold);
-		//location <- board[rnd(0,size_board*size_board-1)];
 	}
 }
 
