@@ -1,7 +1,5 @@
 model Creative
 
-//Display clearly that agents pick the selection based on their utility.
-
 global {
 	
 	int number_of_people <- 10;
@@ -9,6 +7,17 @@ global {
 	init{
 		create people number:number_of_people;
 		create stage number:4;
+		create waiting_area number: 1;
+	}
+}
+
+species waiting_area {
+	aspect base {
+		draw square(10) color: #white depth: 0.5 border: #black;
+	}
+	
+	init {
+		location <- {5, 5};
 	}
 }
 
@@ -30,18 +39,20 @@ species stage skills:[moving, fipa] {
 		aspect5 <- rnd(0,255)/10;
 		aspect6 <- rnd(0,255)/10;
 	
-		playing <- rnd(200, 300);
+		playing <- 100;
 		write '(Time ' + time + '): ' + name + ' sends an inform message to all participants';
 		do start_conversation to: list(people) protocol: 'fipa-contract-net' performative: 'inform' contents: [aspect1, aspect2, aspect3, aspect4, aspect5, aspect6, playing];
 	}
 	
 	aspect base {
 		float color_ <- aspect1 + aspect2 + aspect3 + aspect4 + aspect5 + aspect6;
-		draw square(5) color: rgb(color_, color_, color_) depth: 1;
+		draw square(5) color: rgb(color_, color_, color_) depth: 1 border: #red;
 	}
 }
 
 species people skills:[moving, fipa] {
+	int skip_times <- 0;
+	
 	float aspect1 <- rnd(0,255)/10;
 	float aspect2 <- rnd(0,255)/10;
 	float aspect3 <- rnd(0,255)/10;
@@ -49,6 +60,20 @@ species people skills:[moving, fipa] {
 	float aspect5 <- rnd(0,255)/10;
 	float aspect6 <- rnd(0,255)/10;
 	float color_ <- aspect1 + aspect2 + aspect3 + aspect4 + aspect5 + aspect6;
+	
+	int timer <- 300 min: 0 update: timer - 1;
+	
+	reflex update_color when: timer = 0 {
+		timer <- 300;
+		
+		aspect1 <- rnd(0,255)/10;
+		aspect2 <- rnd(0,255)/10;
+		aspect3 <- rnd(0,255)/10;
+		aspect4 <- rnd(0,255)/10;
+		aspect5 <- rnd(0,255)/10;
+		aspect6 <- rnd(0,255)/10;
+		color_ <- aspect1 + aspect2 + aspect3 + aspect4 + aspect5 + aspect6;
+	}
 	
 	float best_deal <- 99999;
 	point best_deal_p <- nil;
@@ -76,6 +101,18 @@ species people skills:[moving, fipa] {
 		     	tmp_ <- int(proposal.contents[6]);
 			 }
 		}
+		if(best_deal > 10) {
+			targetPoint <- {rnd(0, 10), rnd(0, 10)};
+			in_act <- tmp_;
+			skip_times <- skip_times + 1;
+			if(skip_times > 2){
+				write "I am about to die: " + name;
+				do die;
+			}
+			return;
+		}
+		
+		skip_times <- 0;
 		targetPoint <- best_deal_p;
 		in_act <- tmp_;
 	}
@@ -83,6 +120,7 @@ species people skills:[moving, fipa] {
 	geometry circle_ <- smooth(circle(1), 0.0);
 	aspect base {
 		draw circle(1) color: rgb(color_, color_, color_) depth: 1 border: #green;
+		draw ('name: ' + self.name + ' ' + skip_times) color: #blue font:font("Helvetica", 20 , #bold);
 	}
 	
 	reflex beIdle when: targetPoint = nil {
@@ -110,6 +148,7 @@ experiment my_experiment type: gui {
 			grid festival_map lines: #black;
 			species stage aspect:base;
 			species people aspect:base;
+			species waiting_area aspect:base;
 		}
 	}
 }
